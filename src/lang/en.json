@@ -14,10 +14,6 @@
       "controlsButton": {
         "label": "Config Button",
         "hint": "Adds a button on the Controls bar to open the Karma Configuration. You can also open the configuration by setting a keybinding."
-      },
-      "hideModule": {
-        "label": "Hide Module from Players",
-        "hint": "Replaces the module's name in the Module Management menu for non-GMs to \"libDiceStats\"."
       }
     },
     "Form": {

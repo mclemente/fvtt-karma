@@ -13,25 +13,6 @@ Hooks.once("init", () => {
 		restricted: true,
 	});
 
-	// TODO remove on V14
-	// Used to convert old 1.0 settings to 2.0
-	game.settings.register("karma", "resetSettings", {
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
-
-	// TODO remove on V14
-	if (!game.settings.get("karma", "resetSettings")) {
-		// V1 setting, not used anymore. Kept to avoid issues.
-		game.settings.register("karma", "config", {
-			scope: "world",
-			config: false,
-			type: KarmaData
-		});
-	}
-
 	const { ArrayField, EmbeddedDataField } = foundry.data.fields;
 	game.settings.register("karma", "configs", {
 		scope: "world",
@@ -85,15 +66,6 @@ Hooks.once("init", () => {
 		onChange: async () => await ui.controls.render({ reset: true }),
 	});
 
-	game.settings.register("karma", "hideModule", {
-		name: "KARMA.Settings.hideModule.label",
-		hint: "KARMA.Settings.hideModule.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
-
 	game.keybindings.register("karma", "openKarmDialog", {
 		name: "KARMA.Settings.KarmaDialog.label",
 		onDown: () => {
@@ -107,29 +79,6 @@ Hooks.once("init", () => {
 		settings.find((k) => k.id === id).enabled = false;
 		await game.settings.set("karma", "configs", settings);
 	};
-});
-
-Hooks.once("ready", async () => {
-	// TODO remove on V14
-	if (!game.settings.get("karma", "resetSettings")) {
-		const config = game.settings.get("karma", "config");
-		const defaultValue = game.settings.settings.get("karma.configs").default[0];
-		await game.settings.set("karma", "configs", [{ ...defaultValue, ...config }]);
-		for (const user of game.users) {
-			let flag = foundry.utils.deepClone(user.getFlag("karma", "stats"));
-			if (!flag) continue;
-			flag = { [config[0].id]: { history: flag.history, cumulative: flag.cumulative } };
-			await user.unsetFlag("karma", "stats");
-			await user.setFlag("karma", "stats", flag);
-		}
-		await game.settings.set("karma", "resetSettings", true);
-	}
-	if (!game.user.isGM && game.settings.get("karma", "hideModule")) {
-		const karma = game.modules.get("karma");
-		karma._source.title = "libDiceStats";
-		karma._source.description = "";
-		karma._source.url = "";
-	}
 });
 
 Hooks.on("getSceneControlButtons", (controls) => {
