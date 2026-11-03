@@ -78,10 +78,12 @@ export class KarmaApp extends HandlebarsApplicationMixin(ApplicationV2) {
 		});
 		return {
 			diceList: Object.fromEntries(
-				Object.entries(CONFIG.Dice.fulfillment.dice).map(([key, value]) => {
-					const number = key.replace(/^d/, ""); // Remove the 'd'
-					return [value.label, Number(number)];
-				})
+				Object.entries(CONFIG.Dice.fulfillment.dice)
+					.map(([key, value]) => {
+						const number = key.replace(/^d/, ""); // Remove the 'd'
+						return [value.label, Number(number)];
+					})
+					.filter(([key, value]) => !Number.isNaN(value))
 			),
 			tabs: this.#prepareTabs(),
 			verticalTabs: true,

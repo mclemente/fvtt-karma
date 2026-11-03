@@ -6,6 +6,7 @@ export class KarmaData extends foundry.abstract.DataModel {
 		const maxDie = Math.max(
 			...Object.keys(CONFIG.Dice.fulfillment.dice)
 				.map((key) => Number(key.replace(/^d/, "")))
+				.filter((key) => !Number.isNaN(key))
 		);
 		return {
 			id: new fields.DocumentIdField({ nullable: false }),
@@ -36,13 +37,13 @@ export class KarmaData extends foundry.abstract.DataModel {
 			// TODO rename to "target"
 			floor: requiredInt({ initial: 13, label: "KARMA.Form.Floor.label" }),
 			// Exclusive to Average Karma
-			nudge: requiredInt({initial: 5, label: "KARMA.Form.Nudge.label" }),
+			nudge: requiredInt({ initial: 5, label: "KARMA.Form.Nudge.label" }),
 			cumulative: new fields.BooleanField({ label: "KARMA.Form.Cumulative.label" }),
 			// User Configuration
 			allGms: new fields.BooleanField({ initial: true }),
 			allPlayers: new fields.BooleanField({ initial: true }),
 			users: new fields.TypedObjectField(new fields.BooleanField(),
-				{validateKey: foundry.data.validators.isValidId}),
+				{ validateKey: foundry.data.validators.isValidId }),
 		};
 	}
 
