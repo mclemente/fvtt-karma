@@ -127,73 +127,69 @@ async function wrapDiceTermRoll(wrapped, options) {
 	const roll = await wrapped(options);
 	const validKarma = karma.filter((k) => k.enabled && this.faces === k.dice);
 	for (const k of validKarma) {
-		const valid = (game.user.isGM && k.allGms) || (!game.user.isGM && k.allPlayers) || k.users[game.user.id];
-		if (!valid) continue;
-		const userKarma = game.user.getFlag("karma", "stats") ?? { [k.id]: { history: [], cumulative: 0 } };
-		if (!userKarma[k.id]) userKarma[k.id] = { history: [], cumulative: 0 };
-		const history = userKarma[k.id].history;
+		if (!(game.user.isGM ? k.allGms : k.allPlayers) && !k.users[game.user.id]) continue;
+
+		const userKarma = game.user.getFlag("karma", "stats") ?? {};
+		const stats = userKarma[k.id] ??= { history: [], cumulative: 0 };
+		const { history } = stats;
+
 		history.push(roll.result);
 		clampHistory(history, k);
 
 		if (!options.maximize && !options.minimize) {
 			const oldRoll = roll.result;
-			const ineqCheck = (v1, v2) => {
+
+			const ineqCheck = (a, b) => {
 				switch (k.inequality) {
-					case "≤":
-						return v1 <= v2;
-					case "<":
-						return v1 < v2;
-					case "≥":
-						return v1 >= v2;
-					case ">":
-						return v1 > v2;
+					case "≤": return a <= b;
+					case "<": return a < b;
+					case "≥": return a >= b;
+					case ">": return a > b;
 				}
 			};
-			const floorCheck = ["≤", "<"].includes(k.inequality)
-				? (result) => result < k.floor
-				: (result) => result > k.floor;
+
+			const isLower = k.inequality === "≤" || k.inequality === "<";
+			const missedTarget = (result) => isLower ? result < k.floor : result > k.floor;
+			const reroll = () => {
+				while (missedTarget(roll.result)) {
+					roll.result = Math.ceil(CONFIG.Dice.randomUniform() * this.faces);
+				}
+			};
+
 			if (k.type === "simple") {
-				const tempResult = history.findIndex((element) => !ineqCheck(element, k.threshold));
+				const isValid = history.every((result) => ineqCheck(result, k.threshold));
 
-				if (history.length === k.history && tempResult === -1) {
-					while (floorCheck(roll.result)) {
-						roll.result = Math.ceil(CONFIG.Dice.randomUniform() * this.faces);
-					}
-
+				if (history.length === k.history && isValid) {
+					reroll();
 					history.push(roll.result);
 				}
 				clampHistory(history, k);
 			} else if (k.type === "average") {
-				const tempResult = history.reduce((a, b) => a + b, 0) / history.length;
+				const average = history.reduce((sum, result) => sum + result, 0) / history.length;
 
-				if (history.length === k.history && ineqCheck(tempResult, k.threshold)) {
-					if (k.cumulative) userKarma[k.id].cumulative += 1;
-					else userKarma[k.id].cumulative = 1;
+				if (history.length === k.history && ineqCheck(average, k.threshold)) {
+					stats.cumulative = k.cumulative ? stats.cumulative + 1 : 1;
 
-					const nudge = userKarma[k.id].cumulative * k.nudge;
-					if (["≤", "<"].includes(k.inequality)) roll.result += nudge;
-					else roll.result -= nudge;
-					roll.result = Math.clamp(roll.result, 1, this.faces);
-
+					const nudge = stats.cumulative * k.nudge;
+					roll.result = Math.clamp(roll.result + (isLower ? nudge : -nudge), 1, this.faces);
 					history.push(roll.result);
-				} else userKarma[k.id].cumulative = 0;
-				clampHistory(history, k);
-			} else if (k.type === "fudge") {
-				if (floorCheck(roll.result)) {
-					while (floorCheck(roll.result)) {
-						roll.result = Math.ceil(CONFIG.Dice.randomUniform() * this.faces);
-					}
+				} else stats.cumulative = 0;
 
-					if (!k.recurring) {
-						await game.users.activeGM.query("karma-disable-fudge", { id: k.id });
-					}
+				clampHistory(history, k);
+			} else if (k.type === "fudge" && missedTarget(roll.result)) {
+				reroll();
+
+				if (!k.recurring) {
+					await game.users.activeGM.query("karma-disable-fudge", { id: k.id });
 				}
 			}
+
 			if (oldRoll !== roll.result) {
 				const message = game.i18n.format("KARMA.AdjustRoll", { oldRoll, newRoll: roll.result });
 				if (this.options.karma) this.options.karma.push(message);
 				else this.options.karma = [message];
 			}
+
 			game.user.setFlag("karma", "stats", userKarma);
 			this.results[this.results.length - 1] = roll;
 		}
