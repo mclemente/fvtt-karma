@@ -196,6 +196,8 @@ export class KarmaApp extends HandlebarsApplicationMixin(ApplicationV2) {
 	static async #onSubmit(event, form, formData) {
 		const expandForm = foundry.utils.expandObject(formData.object);
 		const config = [];
+		const { floor, nudge, cumulative } = game.settings.settings.get("karma.configs").default[0];
+
 		Object.entries(expandForm).forEach(([id, karma]) => {
 			const gms = Object.entries(karma?.gms ?? {});
 			const players = Object.entries(karma?.players ?? {});
@@ -203,7 +205,6 @@ export class KarmaApp extends HandlebarsApplicationMixin(ApplicationV2) {
 			karma.allPlayers = players.every(([id, bool]) => bool);
 			const users = Object.fromEntries([...gms, ...players]);
 
-			const { floor, nudge, cumulative } = game.settings.settings.get("karma.configs").default[0];
 			config.push({ floor, nudge, cumulative, users, ...karma });
 		});
 		this.karma = config;
